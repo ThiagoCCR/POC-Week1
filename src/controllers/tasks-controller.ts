@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import * as taskRepository from "../repositories/tasks-repositories.js";
-import { Task } from "../protocols/task.js";
+import { Task, TaskEntity } from "../protocols/task.js";
 import { taskSchema } from "../schemas/tasks-schemas.js";
+import { QueryResult } from "pg";
 
 async function getAllTasks(req: Request, res: Response) {
   try {
-    const tasks = await taskRepository.getTasks();
+    const tasks: QueryResult<TaskEntity> = await taskRepository.getTasks();
     res.status(200).send(tasks.rows);
   } catch (error) {
     res.sendStatus(500).send(error.message);
@@ -14,13 +15,13 @@ async function getAllTasks(req: Request, res: Response) {
 
 async function createTask(req: Request, res: Response) {
   const newTask = req.body as Task;
-  const validation = taskSchema.validate(newTask, { abortEarly: false });
+  const { error } = taskSchema.validate(newTask, {
+    abortEarly: false,
+  });
 
-  if (validation.error) {
-    const error: string[] = validation.error.details.map(
-      (value) => value.message
-    );
-    return res.status(422).send(error);
+  if (error) {
+    const errorMessages: string[] = error.details.map((value) => value.message);
+    return res.status(422).send(errorMessages);
   }
 
   try {
@@ -35,7 +36,8 @@ async function deleteTask(req: Request, res: Response) {
   const taskId: string = req.params.id;
   if (!taskId) res.status(400).send("Please inform a task ID");
   try {
-    const validateId = await taskRepository.getTaskById(taskId);
+    const validateId: QueryResult<TaskEntity> =
+      await taskRepository.getTaskById(taskId);
 
     if (validateId.rowCount === 0) {
       return res.status(404).send("Task not found");
@@ -49,4 +51,23 @@ async function deleteTask(req: Request, res: Response) {
   }
 }
 
-export { getAllTasks, createTask, deleteTask };
+async function updateTask(req: Request, res: Response) {
+  const taskId: string = req.params.id;
+  if (!taskId) res.status(400).send("Please inform a task ID");
+  try {
+    const validateId: QueryResult<TaskEntity> =
+      await taskRepository.getTaskById(taskId);
+
+    if (validateId.rowCount === 0) {
+      return res.status(404).send("Task not found");
+    }
+
+    await taskRepository.updateTask(taskId);
+
+    res.status(200).send("Task updated");
+  } catch (error) {
+    res.sendStatus(500).send(error.message);
+  }
+}
+
+export { getAllTasks, createTask, deleteTask, updateTask };
