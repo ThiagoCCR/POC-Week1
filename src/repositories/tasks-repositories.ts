@@ -25,4 +25,10 @@ async function updateTask(id: string): Promise<QueryResult> {
   return connection.query("UPDATE tasks SET done=true WHERE id=$1;", [id]);
 }
 
-export { getTasks, insertTask, eraseTask, getTaskById, updateTask };
+async function countTasks(): Promise<QueryResult> {
+  return connection.query(
+    'SELECT tasks.responsible, COUNT("id") AS "taskQuantity" FROM tasks WHERE "done"=false GROUP BY "responsible";'
+  );
+}
+
+export { getTasks, insertTask, eraseTask, getTaskById, updateTask, countTasks };
